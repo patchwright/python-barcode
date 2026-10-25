@@ -1,15 +1,17 @@
 Changelog
 ---------
 
-Unreleased
-~~~~~~~~~~
+v0.17.0
+~~~~~~~
 * Migrate ``project.license`` to an SPDX expression and drop the deprecated
   ``License ::`` trove classifier, silencing the ``setuptools >=77``
   deprecation warning. (#260)
-
-v0.16.2
-~~~~~~~
-* Add support for Python 3.13.
+* Add support for Python 3.13, 3.14 and 3.15.
+* Drop support for Python < 3.11.
+* Fix a leading ``99`` digit pair being silently dropped from Code128
+  barcodes. (#251)
+* Fix ISBN-10 and ISSN barcodes being truncated to 10 and 8 digits.
+* Fix Code128 emitting different (but valid) output depending on invocation.
 
 v0.16.1
 ~~~~~~~

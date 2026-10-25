@@ -5,12 +5,12 @@ import os
 import xml.dom.minidom
 from typing import TYPE_CHECKING
 from typing import BinaryIO
-from typing import Callable
 from typing import TypedDict
 
 from barcode.version import version
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Generator
     from typing import Literal
 
@@ -164,7 +164,7 @@ class BaseWriter:
             height += self.text_line_distance * (number_of_text_lines - 1)
         return width, height
 
-    def save(self, filename: str, output) -> str:
+    def save(self, filename: str, output: bytes | T_Image) -> str:
         """Saves the rendered output to `filename`.
 
         :param filename: Filename without extension.
@@ -222,14 +222,12 @@ class BaseWriter:
                     yield (-c, self.guard_height_factor)
                 c = 1
 
-    def render(self, code: list[str]):
+    def render(self, code: list[str]) -> bytes | T_Image:
         """Renders the barcode to whatever the inheriting writer provides,
         using the registered callbacks.
 
-        :parameters:
-            code : List
-                List consisting of a single string matching the writer spec
-                (only contain 0 or 1 or G).
+        :param code: List consisting of a single string matching the writer spec
+            (only contain 0 or 1 or G).
         """
         if self._callbacks["initialize"] is not None:
             self._callbacks["initialize"](code)
@@ -269,10 +267,9 @@ class BaseWriter:
                 xpos, ypos, self.module_width * abs(mod), color
             )
             xpos += self.module_width * abs(mod)
-        else:
-            if height_factor != 1:
-                text["end"].append(xpos)
-            self.module_height = base_height
+        if height_factor != 1:
+            text["end"].append(xpos)
+        self.module_height = base_height
 
         bxe = xpos
         ypos += self.module_height
@@ -291,7 +288,8 @@ class BaseWriter:
                 # Calculates the position of the text by getting the difference
                 # between a guard end and the next start
                 text["start"].pop(0)
-                for s, e in zip(text["start"], text["end"]):
+                # Dropping the first start leaves the lists deliberately uneven.
+                for s, e in zip(text["start"], text["end"], strict=False):
                     text["xpos"].append(e + (s - e) / 2)
 
                 # The last text block is always put after the last guard end
@@ -301,13 +299,13 @@ class BaseWriter:
 
                 # Split the ean into its blocks
                 blocks = self.text.split(" ")
-                for text_, xpos in zip(blocks, text["xpos"]):
+                for text_, xpos in zip(blocks, text["xpos"], strict=True):
                     self.text = text_
                     self._callbacks["paint_text"](xpos, ypos)
 
         return self._callbacks["finish"]()
 
-    def write(self, content, fp: BinaryIO) -> None:
+    def write(self, content: bytes | T_Image, fp: BinaryIO) -> None:
         raise NotImplementedError
 
 
@@ -325,7 +323,7 @@ class SVGWriter(BaseWriter):
         self._root: xml.dom.minidom.Element
         self._group: xml.dom.minidom.Element
 
-    def _init(self, code: list[str]):
+    def _init(self, code: list[str]) -> None:
         if len(code) != 1:
             raise NotImplementedError("Only one line of code is supported")
         line = code[0]
@@ -356,7 +354,13 @@ class SVGWriter(BaseWriter):
             _set_attributes(background, **attributes)
             self._group.appendChild(background)
 
-    def _create_module(self, xpos, ypos, width, color):
+    def _create_module(
+        self,
+        xpos: float,
+        ypos: float,
+        width: float,
+        color: str | int,
+    ) -> None:
         # Background rect has been provided already, so skipping "spaces"
         if color != self.background:
             element = self._document.createElement("rect")
@@ -370,7 +374,7 @@ class SVGWriter(BaseWriter):
             _set_attributes(element, **attributes)
             self._group.appendChild(element)
 
-    def _create_text(self, xpos, ypos):
+    def _create_text(self, xpos: float, ypos: float) -> None:
         # check option to override self.text with self.human (barcode as
         # human readable data, can be used to print own formats)
         barcodetext = self.human if self.human != "" else self.text
@@ -398,7 +402,7 @@ class SVGWriter(BaseWriter):
             indent=4 * " ", newl=os.linesep, encoding="UTF-8"
         )
 
-    def save(self, filename: str, output) -> str:
+    def save(self, filename: str, output: bytes) -> str:
         if self.compress:
             _filename = f"{filename}.svgz"
             with gzip.open(_filename, "wb") as f:
@@ -410,7 +414,7 @@ class SVGWriter(BaseWriter):
                 f.write(output)
         return _filename
 
-    def write(self, content, fp: BinaryIO) -> None:
+    def write(self, content: bytes, fp: BinaryIO) -> None:
         """Write `content` into a file-like object.
 
         Content should be a barcode rendered by this writer.
@@ -463,7 +467,13 @@ else:
             self._image = Image.new(self.mode, size, self.background)
             self._draw = ImageDraw.Draw(self._image)
 
-        def _paint_module(self, xpos: float, ypos: float, width: float, color):
+        def _paint_module(
+            self,
+            xpos: float,
+            ypos: float,
+            width: float,
+            color: str | int,
+        ) -> None:
             size = [
                 (mm2px(xpos, self.dpi), mm2px(ypos, self.dpi)),
                 (
@@ -473,7 +483,7 @@ else:
             ]
             self._draw.rectangle(size, outline=color, fill=color)
 
-        def _paint_text(self, xpos, ypos):
+        def _paint_text(self, xpos: float, ypos: float) -> None:
             assert ImageFont is not None
 
             # check option to override self.text with self.human (barcode as
@@ -497,12 +507,12 @@ else:
         def _finish(self) -> T_Image:
             return self._image
 
-        def save(self, filename: str, output) -> str:
+        def save(self, filename: str, output: T_Image) -> str:
             filename = f"{filename}.{self.format.lower()}"
             output.save(filename, self.format.upper())
             return filename
 
-        def write(self, content, fp: BinaryIO) -> None:
+        def write(self, content: T_Image, fp: BinaryIO) -> None:
             """Write `content` into a file-like object.
 
             Content should be a barcode rendered by this writer.

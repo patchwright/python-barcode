@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import codecs
 import os
 from typing import TYPE_CHECKING
 
@@ -65,10 +64,10 @@ def test_generating_barcodes(
 
     image_elements = gather_image_elements_into_html
 
-    def append(x, y) -> None:
+    def append(x: str, y: str) -> None:
         image_elements.append(OBJECTS.format(filename=x, name=y))
 
-    def append_img(x, y) -> None:
+    def append_img(x: str, y: str) -> None:
         image_elements.append(IMAGES.format(filename=x, name=y))
 
     options = {}
@@ -100,7 +99,7 @@ def gather_image_elements_into_html() -> Iterator[list[str]]:
     yield image_elements
 
     # Save htmlfile with all objects
-    with codecs.open(HTMLFILE, "w", encoding="utf-8") as f:
+    with open(HTMLFILE, "w", encoding="utf-8") as f:
         obj = "\n".join(image_elements)
         f.write(HTML.format(version=version, body=obj))
 

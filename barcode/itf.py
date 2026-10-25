@@ -7,9 +7,16 @@ from __future__ import annotations
 
 __docformat__ = "restructuredtext en"
 
+from typing import TYPE_CHECKING
+
 from barcode.base import Barcode
 from barcode.charsets import itf
 from barcode.errors import IllegalCharacterError
+
+if TYPE_CHECKING:
+    from PIL.Image import Image as T_Image
+
+    from barcode.writer import BaseWriter
 
 MIN_SIZE = 0.2
 MIN_QUIET_ZONE = 6.4
@@ -18,21 +25,22 @@ MIN_QUIET_ZONE = 6.4
 class ITF(Barcode):
     """Initializes a new ITF instance.
 
-    :parameters:
-        code : String
-            ITF (Interleaved 2 of 5) numeric string
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
-        narrow: Integer
-            Width of the narrow elements (default: 2)
-        wide: Integer
-            Width of the wide elements (default: 5)
-            wide/narrow must be in the range 2..3
+    :param code: ITF (Interleaved 2 of 5) numeric string
+    :param writer: The writer to render the barcode (default: SVGWriter).
+    :param narrow: Width of the narrow elements (default: 2)
+    :param wide: Width of the wide elements (default: 5).
+        wide/narrow must be in the range 2..3
     """
 
     name = "ITF"
 
-    def __init__(self, code, writer=None, narrow=2, wide=5) -> None:
+    def __init__(
+        self,
+        code: str,
+        writer: BaseWriter | None = None,
+        narrow: int = 2,
+        wide: int = 5,
+    ) -> None:
         if not code.isdigit():
             raise IllegalCharacterError("ITF code can only contain numbers.")
         # Length must be even, prepend 0 if necessary
@@ -46,7 +54,7 @@ class ITF(Barcode):
     def __str__(self) -> str:
         return self.code
 
-    def get_fullcode(self):
+    def get_fullcode(self) -> str:
         return self.code
 
     def build(self) -> list[str]:
@@ -70,7 +78,11 @@ class ITF(Barcode):
                 raw += "0" * self.narrow
         return [raw]
 
-    def render(self, writer_options, text=None):
+    def render(
+        self,
+        writer_options: dict | None = None,
+        text: str | None = None,
+    ) -> bytes | T_Image:
         options = {
             "module_width": MIN_SIZE / self.narrow,
             "quiet_zone": MIN_QUIET_ZONE,

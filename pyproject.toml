@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "python-barcode"
 description = "Create standard barcodes with Python. No external modules needed. (optional Pillow support included)."
 readme = "README.rst"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
   { name = "Hugo Osvaldo Barrera et al", email = "hugo@whynothugo.nl" }
@@ -18,11 +18,11 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Multimedia :: Graphics",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -49,6 +49,7 @@ version_scheme = "post-release"
 
 [tool.ruff.lint]
 extend-select = [
+    "ANN",
     "E",
     "W",
     "I",
@@ -76,6 +77,10 @@ extend-select = [
     "PGH",
     "PLE",
     "RUF",
+]
+ignore = [
+  "ANN002",  # Annotations for *args
+  "ANN003",  # Annotations for **kwargs
 ]
 
 [tool.ruff.lint.isort]

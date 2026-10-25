@@ -24,9 +24,14 @@ Example::
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from barcode.ean import EuropeanArticleNumber13
 from barcode.errors import BarcodeError
 from barcode.errors import WrongCountryCodeError
+
+if TYPE_CHECKING:
+    from barcode.writer import BaseWriter
 
 __docformat__ = "restructuredtext en"
 
@@ -34,16 +39,19 @@ __docformat__ = "restructuredtext en"
 class InternationalStandardBookNumber13(EuropeanArticleNumber13):
     """Initializes new ISBN-13 barcode.
 
-    :parameters:
-        isbn : String
-            The isbn number as string.
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
+    :param isbn: The isbn number as string.
+    :param writer: The writer to render the barcode (default: SVGWriter).
     """
 
     name = "ISBN-13"
 
-    def __init__(self, isbn, writer=None, no_checksum=False, guardbar=False) -> None:
+    def __init__(
+        self,
+        isbn: str,
+        writer: BaseWriter | None = None,
+        no_checksum: bool = False,
+        guardbar: bool = False,
+    ) -> None:
         isbn = isbn.replace("-", "")
         self.isbn13 = isbn
         if isbn[:3] not in ("978", "979"):
@@ -57,25 +65,22 @@ class InternationalStandardBookNumber10(InternationalStandardBookNumber13):
     """Initializes new ISBN-10 barcode. This code is rendered as EAN-13 by
     prefixing it with 978.
 
-    :parameters:
-        isbn : String
-            The isbn number as string.
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
+    :param isbn: The isbn number as string.
+    :param writer: The writer to render the barcode (default: SVGWriter).
     """
 
     name = "ISBN-10"
 
-    digits = 9
+    isbn_digits = 9
 
-    def __init__(self, isbn, writer=None) -> None:
+    def __init__(self, isbn: str, writer: BaseWriter | None = None) -> None:
         isbn = isbn.replace("-", "")
-        isbn = isbn[: self.digits]
+        isbn = isbn[: self.isbn_digits]
         super().__init__("978" + isbn, writer)
         self.isbn10 = isbn
         self.isbn10 = f"{isbn}{self._calculate_checksum()}"
 
-    def _calculate_checksum(self):
+    def _calculate_checksum(self) -> int | str:
         tmp = sum(x * int(y) for x, y in enumerate(self.isbn10[:9], start=1)) % 11
         if tmp == 10:
             return "X"
@@ -90,36 +95,33 @@ class InternationalStandardSerialNumber(EuropeanArticleNumber13):
     """Initializes new ISSN barcode. This code is rendered as EAN-13
     by prefixing it with 977 and adding 00 between code and checksum.
 
-    :parameters:
-        issn : String
-            The issn number as string.
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
+    :param issn: The issn number as string.
+    :param writer: The writer to render the barcode (default: SVGWriter).
     """
 
     name = "ISSN"
 
-    digits = 7
+    issn_digits = 7
 
-    def __init__(self, issn, writer=None) -> None:
+    def __init__(self, issn: str, writer: BaseWriter | None = None) -> None:
         issn = issn.replace("-", "")
-        issn = issn[: self.digits]
+        issn = issn[: self.issn_digits]
         self.issn = issn
         self.issn = f"{issn}{self._calculate_checksum()}"
         super().__init__(self.make_ean(), writer)
 
-    def _calculate_checksum(self):
+    def _calculate_checksum(self) -> int | str:
         tmp = (
             11
             - sum(x * int(y) for x, y in enumerate(reversed(self.issn[:7]), start=2))
             % 11
-        )
+        ) % 11
         if tmp == 10:
             return "X"
 
         return tmp
 
-    def make_ean(self):
+    def make_ean(self) -> str:
         return f"977{self.issn[:7]}00{self._calculate_checksum()}"
 
     def __str__(self) -> str:

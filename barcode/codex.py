@@ -18,6 +18,8 @@ from barcode.errors import NumberOfDigitsError
 if TYPE_CHECKING:
     from collections.abc import Collection
 
+    from PIL.Image import Image as T_Image
+
     from barcode.writer import BaseWriter
 
 __docformat__ = "restructuredtext en"
@@ -45,7 +47,12 @@ class Code39(Barcode):
 
     name = "Code 39"
 
-    def __init__(self, code: str, writer=None, add_checksum: bool = True) -> None:
+    def __init__(
+        self,
+        code: str,
+        writer: BaseWriter | None = None,
+        add_checksum: bool = True,
+    ) -> None:
         r"""
         :param code: Code 39 string without \* and without checksum.
         :param writer: A ``barcode.writer`` instance used to render the barcode
@@ -83,7 +90,11 @@ class Code39(Barcode):
         result = code39.MIDDLE.join(chars)
         return [result]
 
-    def render(self, writer_options=None, text=None):
+    def render(
+        self,
+        writer_options: dict | None = None,
+        text: str | None = None,
+    ) -> bytes | T_Image:
         options = {"module_width": MIN_SIZE, "quiet_zone": MIN_QUIET_ZONE}
         options.update(writer_options or {})
         return super().render(options, text)
@@ -92,18 +103,15 @@ class Code39(Barcode):
 class PZN7(Code39):
     """Initializes new German number for pharmaceutical products.
 
-    :parameters:
-        pzn : String
-            Code to render.
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
+    :param pzn: Code to render.
+    :param writer: The writer to render the barcode (default: SVGWriter).
     """
 
     name = "Pharmazentralnummer"
 
     digits = 6
 
-    def __init__(self, pzn, writer=None) -> None:
+    def __init__(self, pzn: str, writer: BaseWriter | None = None) -> None:
         pzn = pzn[: self.digits]
         if not pzn.isdigit():
             raise IllegalCharacterError("PZN can only contain numbers.")
@@ -115,10 +123,10 @@ class PZN7(Code39):
         self.pzn = f"{pzn}{self.calculate_checksum()}"
         super().__init__(f"PZN-{self.pzn}", writer, add_checksum=False)
 
-    def get_fullcode(self):
+    def get_fullcode(self) -> str:
         return f"PZN-{self.pzn}"
 
-    def calculate_checksum(self):
+    def calculate_checksum(self) -> int:
         sum_ = sum(int(x) * int(y) for x, y in enumerate(self.pzn, start=2))
         checksum = sum_ % 11
         if checksum == 10:
@@ -137,11 +145,8 @@ class Code128(Barcode):
     """Initializes a new Code128 instance. The checksum is added automatically
     when building the bars.
 
-    :parameters:
-        code : String
-            Code 128 string without checksum (added automatically).
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
+    :param code: Code 128 string without checksum (added automatically).
+    :param writer: The writer to render the barcode (default: SVGWriter).
     """
 
     name = "Code 128"
@@ -150,7 +155,7 @@ class Code128(Barcode):
     writer: BaseWriter
     buffer: str
 
-    def __init__(self, code: str, writer=None) -> None:
+    def __init__(self, code: str, writer: BaseWriter | None = None) -> None:
         self.code = code
         self.writer = writer or self.default_writer()
         self._charset = "C"
@@ -180,7 +185,7 @@ class Code128(Barcode):
         return [code]
 
     # to be redefined in subclass if required
-    def _is_char_fnc1_char(self, char):
+    def _is_char_fnc1_char(self, char: str) -> bool:
         """Whether a character is the FNC1 character.
 
         May be redefined by subclasses if required. FNC1 char is defined in GS1-128
@@ -267,7 +272,14 @@ class Code128(Barcode):
         raise RuntimeError(f"Character {char} could not be converted in charset C.")
 
     def _try_to_optimize(self, encoded: list[int]) -> list[int]:
-        if encoded[1] in code128.TO:
+        # A START_C followed by an immediate charset switch can be folded into a
+        # single START code. In charset C, however, the code number 99 is the
+        # data pair "99" (not the TO_C switch marker), so it must never be folded
+        # away -- doing so silently dropped a leading "99" from the barcode.
+        if encoded[0] == code128.START_CODES["C"] and encoded[1] in (
+            code128.C["TO_A"],
+            code128.C["TO_B"],
+        ):
             encoded[:2] = [code128.TO[encoded[1]]]
         return encoded
 
@@ -278,6 +290,10 @@ class Code128(Barcode):
         return sum(cs) % 103
 
     def _build(self) -> list[int]:
+        # Reset the state that gets mutated while building so that repeated
+        # calls on the same instance are deterministic (see #143).
+        self._charset = "C"
+        self._digit_buffer = ""
         encoded: list[int] = [code128.START_CODES[self._charset]]
         for i, char in enumerate(self.code):
             encoded.extend(self._maybe_switch_charset(i))
@@ -302,7 +318,11 @@ class Code128(Barcode):
         code += "11"
         return [code]
 
-    def render(self, writer_options=None, text=None):
+    def render(
+        self,
+        writer_options: dict | None = None,
+        text: str | None = None,
+    ) -> bytes | T_Image:
         options = {"module_width": MIN_SIZE, "quiet_zone": MIN_QUIET_ZONE}
         options.update(writer_options or {})
         return super().render(options, text)
@@ -320,14 +340,14 @@ class Gs1_128(Code128):  # noqa: N801
 
     FNC1_CHAR = "\xf1"
 
-    def __init__(self, code, writer=None) -> None:
+    def __init__(self, code: str, writer: BaseWriter | None = None) -> None:
         code = self.FNC1_CHAR + code
         super().__init__(code, writer)
 
-    def get_fullcode(self):
+    def get_fullcode(self) -> str:
         return super().get_fullcode()[1:]
 
-    def _is_char_fnc1_char(self, char):
+    def _is_char_fnc1_char(self, char: str) -> bool:
         return char == self.FNC1_CHAR
 
 

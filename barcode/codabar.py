@@ -7,30 +7,36 @@ from __future__ import annotations
 
 __docformat__ = "restructuredtext en"
 
+from typing import TYPE_CHECKING
+
 from barcode.base import Barcode
 from barcode.charsets import codabar
 from barcode.errors import BarcodeError
 from barcode.errors import IllegalCharacterError
 
+if TYPE_CHECKING:
+    from barcode.writer import BaseWriter
+
 
 class CODABAR(Barcode):
     """Initializes a new CODABAR instance.
 
-    :parameters:
-        code : String
-            Codabar (NW-7) string that matches [ABCD][0-9$:/.+-]+[ABCD]
-        writer : barcode.writer Instance
-            The writer to render the barcode (default: SVGWriter).
-        narrow: Integer
-            Width of the narrow elements (default: 2)
-        wide: Integer
-            Width of the wide elements (default: 5)
-            wide/narrow must be in the range 2..3
+    :param code: Codabar (NW-7) string that matches [ABCD][0-9$:/.+-]+[ABCD]
+    :param writer: The writer to render the barcode (default: SVGWriter).
+    :param narrow: Width of the narrow elements (default: 2)
+    :param wide: Width of the wide elements (default: 5).
+        wide/narrow must be in the range 2..3
     """
 
     name = "Codabar (NW-7)"
 
-    def __init__(self, code, writer=None, narrow=2, wide=5) -> None:
+    def __init__(
+        self,
+        code: str,
+        writer: BaseWriter | None = None,
+        narrow: int = 2,
+        wide: int = 5,
+    ) -> None:
         self.code = code
         self.writer = writer or self.default_writer()
         self.narrow = narrow
@@ -39,7 +45,7 @@ class CODABAR(Barcode):
     def __str__(self) -> str:
         return self.code
 
-    def get_fullcode(self):
+    def get_fullcode(self) -> str:
         return self.code
 
     def build(self) -> list[str]:
